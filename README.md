@@ -44,14 +44,14 @@
 
 ```bash
 # Linux 伺服器
-git clone https://github.com/WENZHELIN/playback-watchdog.git
+git clone https://github.com/samoi-service/playback-watchdog.git
 cd playback-watchdog/linux-monitor && npm install && npm run build
 PORT=3100 npm start
 ```
 
 ```powershell
 # Windows 主機（以管理員執行）
-git clone https://github.com/WENZHELIN/playback-watchdog.git C:\PlaybackAgent
+git clone https://github.com/samoi-service/playback-watchdog.git C:\PlaybackAgent
 cd C:\PlaybackAgent\windows-agent
 npm install && npm run build
 # 修改 config\agent.config.json 後：

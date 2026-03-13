@@ -90,7 +90,7 @@ if (Test-Path "C:\PlaybackAgent") {
     git pull
 } else {
     Write-Host "ℹ️  Clone repo..." -ForegroundColor Cyan
-    git clone https://github.com/WENZHELIN/playback-watchdog.git C:\PlaybackAgent
+    git clone https://github.com/samoi-service/playback-watchdog.git C:\PlaybackAgent
 }
 
 cd C:\PlaybackAgent\windows-agent

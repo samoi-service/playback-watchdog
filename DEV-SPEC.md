@@ -180,7 +180,7 @@ type PlaybackNodeState = {
 
 ## GitHub Repository
 
-https://github.com/WENZHELIN/playback-watchdog
+https://github.com/samoi-service/playback-watchdog
 
 > 注意：如需轉移到 samoi-service org，Roy 需在 GitHub 設定 WENZHELIN 為 org member 後重新 push。
 

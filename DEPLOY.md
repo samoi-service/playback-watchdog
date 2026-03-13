@@ -126,7 +126,7 @@ New-NetFirewallRule -DisplayName "PlaybackAgent" -Direction Inbound -Protocol TC
 ### 步驟 1：Clone 並安裝
 
 ```bash
-git clone https://github.com/WENZHELIN/playback-watchdog.git
+git clone https://github.com/samoi-service/playback-watchdog.git
 cd playback-watchdog/linux-monitor
 npm install
 ```
@@ -222,7 +222,7 @@ sudo journalctl -u playback-monitor -f
 以**系統管理員**身份開啟 PowerShell，執行：
 
 ```powershell
-git clone https://github.com/WENZHELIN/playback-watchdog.git C:\PlaybackAgent
+git clone https://github.com/samoi-service/playback-watchdog.git C:\PlaybackAgent
 cd C:\PlaybackAgent\windows-agent
 npm install
 npm run build

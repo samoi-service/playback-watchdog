@@ -54,7 +54,7 @@ Node.js 或 Git 未安裝：
 if (Test-Path C:\PlaybackAgent) {
     cd C:\PlaybackAgent; git pull
 } else {
-    git clone https://github.com/WENZHELIN/playback-watchdog.git C:\PlaybackAgent
+    git clone https://github.com/samoi-service/playback-watchdog.git C:\PlaybackAgent
 }
 
 cd C:\PlaybackAgent\windows-agent
