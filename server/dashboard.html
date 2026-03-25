@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Royal13 場域監控</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e0e0e0;min-height:100vh}
+.header{background:#161822;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a2d3a}
+.header h1{font-size:20px;font-weight:600;color:#fff}
+.header .meta{font-size:13px;color:#888}
+.header .meta .live{color:#22c55e;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;padding:20px 24px}
+.card{background:#161822;border-radius:12px;padding:20px;border:1px solid #2a2d3a;transition:border-color .2s}
+.card.online{border-left:4px solid #22c55e}
+.card.offline{border-left:4px solid #ef4444;opacity:.7}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.node-name{font-size:16px;font-weight:600;color:#fff}
+.status{font-size:12px;padding:3px 10px;border-radius:12px;font-weight:600}
+.status.on{background:#22c55e22;color:#22c55e}
+.status.off{background:#ef444422;color:#ef4444}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric{background:#1e2030;border-radius:8px;padding:10px 12px}
+.metric-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.metric-value{font-size:22px;font-weight:700;color:#fff}
+.metric-value.warn{color:#f59e0b}
+.metric-value.danger{color:#ef4444}
+.metric-bar{height:4px;background:#2a2d3a;border-radius:2px;margin-top:6px;overflow:hidden}
+.metric-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.bar-ok{background:#22c55e}
+.bar-warn{background:#f59e0b}
+.bar-danger{background:#ef4444}
+.metric-sub{font-size:11px;color:#666;margin-top:2px}
+.last-seen{font-size:11px;color:#666;margin-top:12px;text-align:right}
+.alert-bar{background:#ef444422;border-bottom:1px solid #ef4444;padding:10px 24px;font-size:13px;color:#ef4444;display:none}
+.alert-bar.show{display:block}
+.footer{text-align:center;padding:16px;font-size:11px;color:#555}
+.power-section{padding:12px 24px}
+.power-title{font-size:14px;font-weight:600;color:#f59e0b;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.power-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.plug-card{background:#161822;border-radius:10px;padding:14px;border:1px solid #2a2d3a;text-align:center}
+.plug-card.plug-on{border-color:#22c55e55}
+.plug-card.plug-off{border-color:#ef444455}
+.plug-card.plug-unknown{border-color:#66666655;opacity:.6}
+.plug-name{font-size:13px;font-weight:600;color:#fff;margin-bottom:6px}
+.plug-status{font-size:11px;margin-bottom:8px}
+.plug-status .on{color:#22c55e}
+.plug-status .off{color:#ef4444}
+.plug-status .unknown{color:#666}
+.plug-signal{font-size:10px;color:#666;margin-bottom:8px}
+.plug-btns{display:flex;gap:6px;justify-content:center}
+.plug-btn{font-size:11px;padding:4px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;transition:opacity .2s}
+.plug-btn:hover{opacity:.8}
+.plug-btn:disabled{opacity:.3;cursor:not-allowed}
+.plug-btn-on{background:#22c55e33;color:#22c55e}
+.plug-btn-off{background:#ef444433;color:#ef4444}
+.mpv-section{margin-top:12px;border-top:1px solid #2a2d3a;padding-top:12px}
+.mpv-title{font-size:12px;font-weight:600;color:#a78bfa;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.mpv-row{display:flex;gap:8px;margin-bottom:6px;align-items:center;font-size:13px}
+.mpv-port{color:#888;font-family:monospace;min-width:50px}
+.mpv-badge{font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600}
+.mpv-badge.ok{background:#22c55e22;color:#22c55e}
+.mpv-badge.err{background:#ef444422;color:#ef4444}
+.mpv-badge.warn{background:#f59e0b22;color:#f59e0b}
+.mpv-badge.info{background:#3b82f622;color:#3b82f6}
+.mpv-addr{color:#888;font-family:monospace;font-size:12px}
+.mpv-proc{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:13px}
+.mpv-controls{display:flex;gap:8px;margin-top:10px}
+.btn-ctrl{font-size:12px;padding:5px 14px;border-radius:6px;border:none;cursor:pointer;font-weight:600;transition:opacity .2s}
+.btn-ctrl:hover{opacity:.85}
+.btn-ctrl:disabled{opacity:.4;cursor:not-allowed}
+.btn-start{background:#22c55e33;color:#22c55e}
+.btn-stop{background:#ef444433;color:#ef4444}
+.btn-pending{background:#f59e0b33;color:#f59e0b;font-size:11px;padding:4px 10px;border-radius:6px;display:inline-block;margin-top:8px}
+.mpv-playback{display:flex;align-items:center;gap:6px;margin:2px 0 6px 58px;font-size:12px;padding:5px 10px;background:#1a1c2e;border-radius:5px;max-width:calc(100% - 58px)}
+.play-icon{font-size:13px;flex-shrink:0}
+.play-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e2e8f0}
+.play-time{color:#888;font-family:monospace;font-size:11px;white-space:nowrap;flex-shrink:0}
+.play-bar{height:3px;background:#2a2d3a;border-radius:2px;margin:3px 0 0 58px;max-width:calc(100% - 58px);overflow:hidden}
+.play-bar-fill{height:100%;background:#a78bfa;border-radius:2px;transition:width .5s}
+</style>
+</head>
+<body>
+<div class="alert-bar" id="alertBar"></div>
+<div class="header">
+  <h1>Royal13 場域監控</h1>
+  <a href="/gateway" style="font-size:13px;color:#5b8def;text-decoration:none;padding:4px 12px;border:1px solid #5b8def44;border-radius:6px;transition:all .2s">Gateway Logs</a>
+  <div class="meta">
+    <span id="onlineCount"></span> · 更新: <span id="lastUpdate">—</span> · <span class="live" id="liveIndicator">● LIVE</span>
+  </div>
+</div>
+<div class="power-section">
+  <div class="power-title">⚡ 智慧插座電源控制</div>
+  <div class="power-grid" id="powerGrid">
+    <div class="plug-card plug-unknown"><div class="plug-name">載入中...</div></div>
+  </div>
+</div>
+<div class="grid" id="grid"></div>
+<div class="footer">venue-monitor · 自動更新 10s</div>
+<script>
+const REFRESH_MS=10000;
+const TH={cpu_percent:{w:70,d:90},ram_percent:{w:80,d:95},gpu_percent:{w:80,d:95},gpu_temp_c:{w:75,d:85},disk_percent:{w:80,d:90}};
+const EXPECTED_IPS={'royal13-a2':'192.168.1.174','royal13-a3':'192.168.1.178','royal13-bigv':'192.168.0.201','royal13-littlev':'192.168.0.198'};
+function sev(k,v){if(v==null)return"ok";const t=TH[k];if(!t)return"ok";if(v>=t.d)return"danger";if(v>=t.w)return"warn";return"ok";}
+function fmt(v,u){if(v==null)return"—";return typeof v==="number"?v.toFixed(1)+(u||''):v;}
+function timeAgo(ts){const d=Math.floor(Date.now()/1000)-ts;if(d<60)return d+'秒前';if(d<3600)return Math.floor(d/60)+'分鐘前';if(d<86400)return Math.floor(d/3600)+'小時前';return Math.floor(d/86400)+'天前';}
+function fmtTime(s){if(s==null)return'?';var m=Math.floor(s/60);var sec=Math.floor(s%60);return m+':'+(sec<10?'0':'')+sec;}
+function escHtml(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function bar(p,k){const s=sev(k,p);const w=Math.min(100,Math.max(0,p||0));return'<div class="metric-bar"><div class="metric-bar-fill bar-'+s+'" style="width:'+w+'%"></div></div>';}
+function renderPlayback(inst){
+  if(!inst.playback||!inst.playback.title)return'';
+  var pb=inst.playback;
+  var pos=pb.position!=null?fmtTime(pb.position):'?';
+  var dur=pb.duration!=null?fmtTime(pb.duration):'?';
+  var icon=pb.paused?'⏸':'▶';
+  var pct=(pb.position!=null&&pb.duration>0)?Math.min(100,(pb.position/pb.duration)*100):0;
+  var html='<div class="mpv-playback"><span class="play-icon">'+icon+'</span><span class="play-title">'+escHtml(pb.title)+'</span><span class="play-time">'+pos+' / '+dur+'</span></div>';
+  html+='<div class="play-bar"><div class="play-bar-fill" style="width:'+pct.toFixed(1)+'%"></div></div>';
+  return html;
+}
+function renderMpv(n){
+  if(!n.mpvserver||!EXPECTED_IPS[n.node])return'';
+  const ms=n.mpvserver;const expectedIP=EXPECTED_IPS[n.node];
+  let html='<div class="mpv-section"><div class="mpv-title">🎬 MPVServer</div>';
+  // Process count
+  const pc=ms.process_count!=null?ms.process_count:'?';
+  const pcOk=pc===2;
+  html+='<div class="mpv-proc"><span class="mpv-badge '+(pcOk?'ok':'err')+'">進程: '+pc+'/2</span></div>';
+  // Per-instance
+  if(ms.instances&&ms.instances.length>0){
+    ms.instances.forEach(function(inst){
+      html+='<div class="mpv-row">';
+      html+='<span class="mpv-port">:'+inst.port+'</span>';
+      if(!inst.listening){
+        html+='<span class="mpv-badge err">未監聽</span>';
+      }else{
+        const addrOk=inst.listen_addr===expectedIP;
+        html+='<span class="mpv-badge '+(addrOk?'ok':'warn')+'">'+inst.listen_addr+'</span>';
+        if(!addrOk)html+=' <span class="mpv-badge warn">應為 '+expectedIP+'</span>';
+      }
+      if(inst.tablet_connected){
+        html+=' <span class="mpv-badge info">📱 '+(inst.tablet_ip||'已連線')+'</span>';
+      }else{
+        html+=' <span style="color:#555;font-size:12px">📱 未連線</span>';
+      }
+      html+='</div>';
+      // Playback info
+      html+=renderPlayback(inst);
+    });
+  }
+  // ADB Tablet
+  if(ms.tablet){
+    const t=ms.tablet;
+    html+='<div class="mpv-row">';
+    html+='<span class="mpv-port">📱</span>';
+    if(t.connected){
+      html+='<span class="mpv-badge ok">平板在線</span> <span style="color:#888;font-size:11px;font-family:monospace">'+t.serial+'</span>';
+    }else if(t.serial&&t.status==='unauthorized'){
+      html+='<span class="mpv-badge warn">未授權</span> <span style="color:#888;font-size:11px">'+t.serial+'</span>';
+    }else if(t.serial&&t.status==='offline'){
+      html+='<span class="mpv-badge err">離線</span> <span style="color:#888;font-size:11px">'+t.serial+'</span>';
+    }else{
+      html+='<span class="mpv-badge err">未偵測到</span>';
+    }
+    html+='</div>';
+  }
+  // Control buttons
+  const hasPending=n.pending_command;
+  html+='<div class="mpv-controls">';
+  html+='<button class="btn-ctrl btn-start" onclick="controlMpv(\''+n.node+'\',\'start\')"'+(hasPending?' disabled':'')+'>▶ 開啟</button>';
+  html+='<button class="btn-ctrl btn-stop" onclick="controlMpv(\''+n.node+'\',\'stop\')"'+(hasPending?' disabled':'')+'>⏹ 關閉</button>';
+  html+='</div>';
+  if(hasPending){html+='<div class="btn-pending">⏳ '+(hasPending.action==='start_mpvserver'?'開啟':'關閉')+'指令等待中 ('+hasPending.age+'s)</div>';}
+  html+='</div>';
+  return html;
+}
+function renderNode(n){
+  const on=n.online,cls=on?'online':'offline',sc=on?'on':'off',st=on?'在線':'離線';
+  return'<div class="card '+cls+'"><div class="card-header"><span class="node-name">'+(n.node||'?')+'</span><span class="status '+sc+'">'+st+'</span></div><div class="metrics">'+
+  '<div class="metric"><div class="metric-label">CPU</div><div class="metric-value '+sev('cpu_percent',n.cpu_percent)+'">'+fmt(n.cpu_percent,'%')+'</div>'+bar(n.cpu_percent,'cpu_percent')+'</div>'+
+  '<div class="metric"><div class="metric-label">RAM</div><div class="metric-value '+sev('ram_percent',n.ram_percent)+'">'+fmt(n.ram_percent,'%')+'</div>'+bar(n.ram_percent,'ram_percent')+'<div class="metric-sub">'+fmt(n.ram_used_mb)+'/'+fmt(n.ram_total_mb)+' MB</div></div>'+
+  '<div class="metric"><div class="metric-label">GPU</div><div class="metric-value '+sev('gpu_percent',n.gpu_percent)+'">'+fmt(n.gpu_percent,'%')+'</div>'+bar(n.gpu_percent,'gpu_percent')+'<div class="metric-sub">'+(n.gpu_name||'—')+'</div></div>'+
+  '<div class="metric"><div class="metric-label">GPU 溫度</div><div class="metric-value '+sev('gpu_temp_c',n.gpu_temp_c)+'">'+fmt(n.gpu_temp_c,'°C')+'</div>'+bar(n.gpu_temp_c?n.gpu_temp_c/100*100:0,'gpu_temp_c')+'</div>'+
+  '<div class="metric"><div class="metric-label">磁碟</div><div class="metric-value '+sev('disk_percent',n.disk_percent)+'">'+fmt(n.disk_percent,'%')+'</div>'+bar(n.disk_percent,'disk_percent')+'<div class="metric-sub">'+fmt(n.disk_free_gb)+' GB 可用</div></div>'+
+  '<div class="metric"><div class="metric-label">運行時間</div><div class="metric-value">'+fmt(n.uptime_hours,'h')+'</div></div>'+
+  '</div>'+renderMpv(n)+'<div class="last-seen">最後回報: '+(n.ts?timeAgo(n.ts):'—')+'</div></div>';}
+async function refresh(){
+  try{
+    const r=await fetch('/api/nodes');const nodes=await r.json();
+    nodes.sort(function(a,b){if(a.online!==b.online)return a.online?-1:1;return(a.node||'').localeCompare(b.node||'');});
+    document.getElementById('grid').innerHTML=nodes.map(renderNode).join('');
+    const on=nodes.filter(function(n){return n.online;}).length,off=nodes.filter(function(n){return !n.online;}).length;
+    document.getElementById('onlineCount').innerHTML='<span style="color:#22c55e">'+on+' 在線</span>'+(off>0?' / <span style="color:#ef4444;font-weight:600">'+off+' 離線</span>':'');
+    document.getElementById('lastUpdate').textContent=new Date().toLocaleTimeString('zh-TW');
+    document.getElementById('liveIndicator').style.color='#22c55e';
+    const ab=document.getElementById('alertBar');const offN=nodes.filter(function(n){return !n.online;});
+    // MPVServer alerts
+    const mpvAlerts=[];
+    nodes.forEach(function(n){
+      if(!n.mpvserver||!EXPECTED_IPS[n.node]||!n.online)return;
+      const ms=n.mpvserver;const eip=EXPECTED_IPS[n.node];
+      if(ms.process_count!=null&&ms.process_count!==2)mpvAlerts.push(n.node+': MPVServer 進程='+ms.process_count);
+      if(ms.instances)ms.instances.forEach(function(inst){
+        if(!inst.listening)mpvAlerts.push(n.node+': port '+inst.port+' 未監聽');
+        else if(inst.listen_addr&&inst.listen_addr!==eip)mpvAlerts.push(n.node+': port '+inst.port+' 綁定異常 '+inst.listen_addr);
+      });
+    });
+    const allAlerts=[];
+    if(offN.length>0)allAlerts.push('⚠️ 離線: '+offN.map(function(n){return n.node;}).join(', '));
+    if(mpvAlerts.length>0)allAlerts.push('🎬 '+mpvAlerts.join(' | '));
+    if(allAlerts.length>0){ab.className='alert-bar show';ab.innerHTML=allAlerts.join('<br>');}else{ab.className='alert-bar';}
+  }catch(e){document.getElementById('liveIndicator').style.color='#ef4444';document.getElementById('liveIndicator').textContent='● 連線失敗';}}
+async function controlMpv(node,action){
+  try{
+    const r=await fetch('/api/control/'+node+'/'+action,{method:'POST'});
+    const j=await r.json();
+    if(j.status==='queued'){refresh();}
+    else{alert('錯誤: '+JSON.stringify(j));}
+  }catch(e){alert('送出失敗: '+e.message);}}
+// Tapo smart plug (cloud API)
+function renderPlugs(data){
+  const grid=document.getElementById('powerGrid');
+  if(!data||Object.keys(data).length===0){grid.innerHTML='<div style="color:#666;font-size:13px;padding:8px">⚠️ Tapo Cloud 未連線或無裝置</div>';return;}
+  grid.innerHTML=Object.entries(data).map(function(e){
+    var alias=e[0],p=e[1];
+    var cls=p.online?'plug-on':'plug-unknown';
+    var stText=p.online?'<span class="on">● 已註冊</span>':'<span class="unknown">● 離線</span>';
+    var modelInfo=p.model?'<div class="plug-signal">'+p.model+(p.mac?' · '+p.mac:'')+'</div>':'';
+    return'<div class="plug-card '+cls+'"><div class="plug-name">'+escHtml(alias)+'</div><div class="plug-status">'+stText+'</div>'+modelInfo+'<div class="plug-btns"><button class="plug-btn plug-btn-on" onclick="tapoCtrl(\''+alias.replace(/'/g,"\\'")+'\',\'on\')">⚡ 開</button><button class="plug-btn plug-btn-off" onclick="tapoCtrl(\''+alias.replace(/'/g,"\\'")+'\',\'off\')">🔌 關</button></div></div>';
+  }).join('');
+}
+async function refreshTapo(){
+  try{var r=await fetch('/api/tapo/status');var d=await r.json();if(d.error){renderPlugs(null);return;}renderPlugs(d);}
+  catch(e){renderPlugs(null);}
+}
+async function tapoCtrl(alias,action){
+  var btn=event.target;btn.disabled=true;btn.textContent='⏳...';
+  try{
+    var r=await fetch('/api/tapo/'+encodeURIComponent(alias)+'/'+action,{method:'POST'});
+    var j=await r.json();
+    if(j.error){
+      if(j.error==='device_offline'){btn.textContent='⚠️ 離線';btn.style.opacity='0.6';}
+      else{btn.textContent='❌ 失敗';}
+      setTimeout(function(){btn.disabled=false;btn.textContent=action==='on'?'⚡ 開':'🔌 關';btn.style.opacity='';},3000);
+      return;
+    }
+    btn.textContent='✅';
+    setTimeout(function(){btn.disabled=false;btn.textContent=action==='on'?'⚡ 開':'🔌 關';refreshTapo();},1500);
+  }catch(e){btn.textContent='❌ 錯誤';setTimeout(function(){btn.disabled=false;btn.textContent=action==='on'?'⚡ 開':'🔌 關';},3000);}}
+refresh();refreshTapo();setInterval(refresh,REFRESH_MS);setInterval(refreshTapo,30000);
+</script>
+</body>
+</html>

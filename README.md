@@ -8,13 +8,17 @@
 
 | 文件 | 內容 |
 |------|------|
-| **[AI-DEPLOY.md](./AI-DEPLOY.md)** | 🤖 **AI 自動部署**（Claude / Codex / Gemini 通用） |
+| **[AI-DEPLOY.md](./AI-DEPLOY.md)** | AI 自動部署（Claude / Codex / Gemini 通用） |
 | [DEPLOY.md](./DEPLOY.md) | 完整部署手冊（手動步驟 + 設定說明 + API） |
 | [DEV-SPEC.md](./DEV-SPEC.md) | 技術規格與架構設計 |
 
 ---
 
-## 架構概覽
+## 系統架構
+
+本 repo 包含兩套系統：
+
+### v1 — 通用 Watchdog（linux-monitor + windows-agent）
 
 ```
 ┌─────────────────────────────┐         ┌──────────────────────────────┐
@@ -30,7 +34,42 @@
                                         └──────────────────────────────┘
 ```
 
-## 健康狀態
+### v2 — Royal13 OpenClaw 場域監控（server + agent）
+
+```
+Mac mini: Control Server (server/)
+    | HTTPS / JSON (v1 Protocol)
+4x Windows Player: Player Agent (agent/)
+    WinSW -> Agent -> OpenClaw Runtime
+```
+
+---
+
+## 目錄結構
+
+```
+playback-watchdog/
+├── linux-monitor/          ← v1 通用監控伺服器 (Fastify)
+├── windows-agent/          ← v1 通用 Windows Agent (Fastify)
+├── server/                 ← v2 Royal13 Control Server (Node.js)
+├── agent/                  ← v2 Royal13 Player Agent (TypeScript)
+├── docs/                   ← v2 設計文件
+├── scripts/                ← v2 部署腳本
+├── DEPLOY.md               ← v1 部署手冊
+├── DEV-SPEC.md             ← v1 技術規格
+└── AI-DEPLOY.md            ← AI 自動部署提示
+```
+
+## v2 Royal13 設備
+
+| ID | 名稱 | LAN IP |
+|----|------|--------|
+| royal13-a2 | Royal13-A2 | 192.168.1.174 |
+| royal13-a3 | Royal13-A3 | 192.168.1.178 |
+| royal13-bigv | Royal13-BigV | 192.168.0.201 |
+| royal13-littlev | Royal13-LittleV | 192.168.0.198 |
+
+## 健康狀態 (v1)
 
 | 狀態 | 條件 | 動作 |
 |------|------|------|
@@ -42,60 +81,38 @@
 
 ## 快速啟動
 
+### v1 通用 Watchdog
+
 ```bash
 # Linux 伺服器
-git clone https://github.com/samoi-service/playback-watchdog.git
-cd playback-watchdog/linux-monitor && npm install && npm run build
+cd linux-monitor && npm install && npm run build
 PORT=3100 npm start
 ```
 
 ```powershell
 # Windows 主機（以管理員執行）
-git clone https://github.com/samoi-service/playback-watchdog.git C:\PlaybackAgent
-cd C:\PlaybackAgent\windows-agent
-npm install && npm run build
+cd windows-agent && npm install && npm run build
 # 修改 config\agent.config.json 後：
 powershell -ExecutionPolicy Bypass -File scripts\install-task-scheduler.ps1
 ```
 
-→ 完整說明請見 **[DEPLOY.md](./DEPLOY.md)**
+### v2 Royal13 OpenClaw
 
-## 測試
+```bash
+# Mac mini Control Server
+cd server && npm install && npm start
+```
+
+```powershell
+# Windows Player Agent
+cd agent && npm install && npm run build
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+```
+
+## 測試 (v1)
 
 ```bash
 cd linux-monitor
 npm test                              # 5 個單元整合測試
 python3 tests/live-system.test.py    # 12 項 live 驗收測試（需系統在線）
-```
-
-## 目錄結構
-
-```
-playback-watchdog/
-├── DEPLOY.md                          ← 部署手冊
-├── DEV-SPEC.md                        ← 技術規格
-├── linux-monitor/
-│   ├── src/
-│   │   ├── server.ts                  ← Fastify API 伺服器
-│   │   ├── state-manager.ts           ← 節點狀態機
-│   │   ├── logger.ts
-│   │   └── types.ts
-│   ├── config/nodes.json              ← 節點清單設定
-│   ├── tests/
-│   │   ├── integration.test.ts        ← Vitest 單元測試
-│   │   └── live-system.test.py        ← Live 驗收測試
-│   └── scripts/install-systemd.sh    ← systemd 安裝腳本
-└── windows-agent/
-    ├── src/
-    │   ├── agent.ts                   ← Fastify API + singleton guard
-    │   ├── heartbeat.ts               ← 心跳推送
-    │   ├── process-manager.ts         ← tasklist + spawn
-    │   └── types.ts
-    ├── config/agent.config.json       ← Agent 設定
-    └── scripts/
-        ├── install-task-scheduler.ps1 ← Task Scheduler 安裝
-        └── hardening/
-            ├── init_workstation.ps1   ← 主機硬化
-            ├── rollback_workstation.ps1
-            └── check_status.ps1      ← 硬化狀態檢查
 ```

@@ -1,0 +1,23 @@
+﻿{
+  "protocolVersion": "1.0",
+  "deviceId": "royal13-a2",
+  "deviceName": "Royal13-A2",
+  "serverBaseUrl": "https://100.106.81.54:9100",
+  "deviceToken": "CHANGE_ME",
+  "heartbeatIntervalSec": 15,
+  "commandPollIntervalSec": 5,
+  "watchdogIntervalSec": 5,
+  "logRetentionDays": 14,
+  "openclaw": {
+    "nodePath": "C:\\nvm4w\\nodejs\\node.exe",
+    "scriptPath": "C:\\nvm4w\\nodejs\\node_modules\\openclaw\\openclaw.mjs",
+    "args": [
+      "node", "run",
+      "--host", "wenzhelin-minimac-mini.tail2ef762.ts.net",
+      "--port", "443",
+      "--tls",
+      "--display-name", "royal13-a2"
+    ],
+    "gatewayToken": "CHANGE_ME"
+  }
+}

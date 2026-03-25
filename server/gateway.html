@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gateway Logs - Venue Monitor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e0e0e0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.header{background:#161822;padding:12px 20px;border-bottom:1px solid #2a2d3a;flex-shrink:0}
+.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.header-left{display:flex;align-items:center;gap:16px}
+.header-left h1{font-size:18px;font-weight:600;color:#fff}
+.back-link{font-size:13px;color:#888;text-decoration:none;transition:color .2s}
+.back-link:hover{color:#fff}
+.conn-status{font-size:12px;padding:3px 10px;border-radius:12px;font-weight:600}
+.conn-status.connected{background:#22c55e22;color:#22c55e}
+.conn-status.disconnected{background:#ef444422;color:#ef4444}
+.conn-status.connecting{background:#f59e0b22;color:#f59e0b}
+.header-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.filter-btns{display:flex;gap:6px;flex-wrap:wrap}
+.filter-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #2a2d3a;background:#1e2030;color:#888;cursor:pointer;transition:all .2s;user-select:none}
+.filter-btn.active{border-color:currentColor;opacity:1}
+.filter-btn.inactive{opacity:.4}
+.filter-btn[data-cat="discord"]{color:#5b8def}
+.filter-btn[data-cat="telegram"]{color:#22c55e}
+.filter-btn[data-cat="ws"]{color:#f59e0b}
+.filter-btn[data-cat="gateway"]{color:#e0e0e0}
+.filter-btn[data-cat="health-monitor"]{color:#f97316}
+.filter-btn[data-cat="err"]{color:#ef4444}
+.filter-btn[data-cat="other"]{color:#a78bfa}
+.search-box{background:#1e2030;border:1px solid #2a2d3a;border-radius:6px;color:#e0e0e0;padding:5px 10px;font-size:12px;width:200px;outline:none;transition:border-color .2s}
+.search-box:focus{border-color:#5b8def}
+.stats{font-size:11px;color:#666;display:flex;gap:12px;align-items:center}
+.log-container{flex:1;overflow-y:auto;padding:4px 0;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;line-height:1.6;position:relative}
+.log-line{padding:1px 16px;white-space:pre-wrap;word-break:break-all;border-left:3px solid transparent}
+.log-line:hover{background:#1e203080}
+.log-line.cat-discord{border-left-color:#5b8def}
+.log-line.cat-telegram{border-left-color:#22c55e}
+.log-line.cat-ws{border-left-color:#f59e0b}
+.log-line.cat-gateway{border-left-color:#555}
+.log-line.cat-health-monitor{border-left-color:#f97316}
+.log-line.cat-err{border-left-color:#ef4444;background:#ef444408}
+.log-line.cat-other{border-left-color:#a78bfa}
+.log-line .ts{color:#555}
+.log-line .badge{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;margin:0 4px}
+.badge-discord{background:#5b8def22;color:#5b8def}
+.badge-telegram{background:#22c55e22;color:#22c55e}
+.badge-ws{background:#f59e0b22;color:#f59e0b}
+.badge-gateway{background:#55555533;color:#999}
+.badge-health-monitor{background:#f9731622;color:#f97316}
+.badge-err{background:#ef444422;color:#ef4444}
+.badge-other{background:#a78bfa22;color:#a78bfa}
+.log-line .msg{color:#ccc}
+.log-line.cat-err .msg{color:#f87171}
+.log-line.hidden{display:none}
+.scroll-btn{position:fixed;bottom:24px;right:24px;background:#5b8def;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 12px #0008;display:none;z-index:10;transition:opacity .2s}
+.scroll-btn:hover{opacity:.9}
+.scroll-btn.show{display:block}
+.empty-msg{color:#555;text-align:center;padding:60px 20px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-top">
+    <div class="header-left">
+      <a href="/" class="back-link">&larr; Dashboard</a>
+      <h1>Gateway Logs</h1>
+      <span class="conn-status connecting" id="connStatus">connecting...</span>
+    </div>
+    <div class="stats">
+      <span id="lineCount">0 lines</span>
+      <span id="logStats"></span>
+    </div>
+  </div>
+  <div class="header-controls">
+    <div class="filter-btns" id="filterBtns">
+      <button class="filter-btn active" data-cat="discord" onclick="toggleFilter('discord')">discord</button>
+      <button class="filter-btn active" data-cat="telegram" onclick="toggleFilter('telegram')">telegram</button>
+      <button class="filter-btn active" data-cat="ws" onclick="toggleFilter('ws')">ws</button>
+      <button class="filter-btn active" data-cat="gateway" onclick="toggleFilter('gateway')">gateway</button>
+      <button class="filter-btn active" data-cat="health-monitor" onclick="toggleFilter('health-monitor')">health</button>
+      <button class="filter-btn active" data-cat="err" onclick="toggleFilter('err')">err.log</button>
+      <button class="filter-btn active" data-cat="other" onclick="toggleFilter('other')">other</button>
+    </div>
+    <input type="text" class="search-box" id="searchBox" placeholder="Search logs..." oninput="applyFilters()">
+  </div>
+</div>
+<div class="log-container" id="logContainer">
+  <div class="empty-msg" id="emptyMsg">Connecting to gateway log stream...</div>
+</div>
+<button class="scroll-btn" id="scrollBtn" onclick="scrollToBottom()">&#8595; New logs</button>
+
+<script>
+const MAX_LINES = 5000;
+const KNOWN_CATS = ['discord','telegram','ws','gateway','health-monitor','canvas','reload','heartbeat','agent','sessions','pairing','tool'];
+const CAT_MAP = {
+  'discord':'discord','telegram':'telegram','ws':'ws','gateway':'gateway',
+  'health-monitor':'health-monitor','canvas':'other','reload':'other',
+  'heartbeat':'other','agent':'other','sessions':'other','pairing':'other','tool':'other'
+};
+
+let lines = [];
+let autoScroll = true;
+let filters = {discord:true,telegram:true,ws:true,gateway:true,'health-monitor':true,err:true,other:true};
+let searchTerm = '';
+let evtSource = null;
+let reconnectTimer = null;
+
+const container = document.getElementById('logContainer');
+const emptyMsg = document.getElementById('emptyMsg');
+const scrollBtn = document.getElementById('scrollBtn');
+const connStatus = document.getElementById('connStatus');
+const lineCountEl = document.getElementById('lineCount');
+const logStatsEl = document.getElementById('logStats');
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function parseLine(raw, source) {
+  // Format: 2026-03-24T16:51:18.397+08:00 [category] message
+  // or: 2026-02-01T12:18:19.246Z [category] message
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2}T[\d:.]+(?:[+-]\d{2}:\d{2}|Z))\s+\[([^\]]+)\]\s+(.*)/);
+  if (m) {
+    const cat = CAT_MAP[m[2]] || 'other';
+    return { ts: m[1], category: m[2], catGroup: source === 'err' ? 'err' : cat, msg: m[3], source: source };
+  }
+  // No timestamp match — treat as continuation or raw line
+  return { ts: '', category: '', catGroup: source === 'err' ? 'err' : 'other', msg: raw, source: source };
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  // Extract HH:MM:SS.mmm
+  const m = ts.match(/T([\d:.]+)/);
+  return m ? m[1].substring(0, 12) : ts;
+}
+
+function createLineEl(parsed) {
+  const div = document.createElement('div');
+  const cat = parsed.catGroup;
+  div.className = 'log-line cat-' + cat;
+  div.dataset.cat = cat;
+  div.dataset.raw = (parsed.ts + ' ' + parsed.category + ' ' + parsed.msg).toLowerCase();
+
+  let badge = '';
+  if (parsed.source === 'err') {
+    badge = '<span class="badge badge-err">ERR</span>';
+  }
+  if (parsed.category) {
+    const badgeCat = cat === 'err' ? 'err' : cat;
+    badge += '<span class="badge badge-' + badgeCat + '">' + escHtml(parsed.category) + '</span>';
+  }
+
+  div.innerHTML = '<span class="ts">' + escHtml(formatTime(parsed.ts)) + '</span>' + badge + '<span class="msg">' + escHtml(parsed.msg) + '</span>';
+
+  // Apply current filters
+  if (!filters[cat]) div.classList.add('hidden');
+  if (searchTerm && !div.dataset.raw.includes(searchTerm)) div.classList.add('hidden');
+
+  return div;
+}
+
+function addLine(raw, source) {
+  if (!raw.trim()) return;
+  emptyMsg.style.display = 'none';
+  const parsed = parseLine(raw, source);
+  const el = createLineEl(parsed);
+  lines.push(el);
+  container.appendChild(el);
+
+  // Trim old lines
+  while (lines.length > MAX_LINES) {
+    const old = lines.shift();
+    old.remove();
+  }
+
+  updateLineCount();
+  if (autoScroll) scrollToBottom();
+}
+
+function scrollToBottom() {
+  container.scrollTop = container.scrollHeight;
+  autoScroll = true;
+  scrollBtn.classList.remove('show');
+}
+
+function updateLineCount() {
+  const visible = lines.filter(l => !l.classList.contains('hidden')).length;
+  lineCountEl.textContent = visible + ' / ' + lines.length + ' lines';
+}
+
+// Scroll detection
+container.addEventListener('scroll', function() {
+  const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+  if (atBottom) {
+    autoScroll = true;
+    scrollBtn.classList.remove('show');
+  } else {
+    autoScroll = false;
+    scrollBtn.classList.add('show');
+  }
+});
+
+function toggleFilter(cat) {
+  filters[cat] = !filters[cat];
+  const btn = document.querySelector('.filter-btn[data-cat="' + cat + '"]');
+  if (btn) btn.className = 'filter-btn ' + (filters[cat] ? 'active' : 'inactive');
+  applyFilters();
+}
+
+function applyFilters() {
+  searchTerm = document.getElementById('searchBox').value.toLowerCase();
+  for (const el of lines) {
+    const cat = el.dataset.cat;
+    const matchCat = filters[cat] !== false;
+    const matchSearch = !searchTerm || el.dataset.raw.includes(searchTerm);
+    if (matchCat && matchSearch) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+  }
+  updateLineCount();
+}
+
+function setConnStatus(state) {
+  connStatus.className = 'conn-status ' + state;
+  if (state === 'connected') connStatus.textContent = 'connected';
+  else if (state === 'disconnected') connStatus.textContent = 'disconnected';
+  else connStatus.textContent = 'connecting...';
+}
+
+function connect() {
+  if (evtSource) { evtSource.close(); evtSource = null; }
+  setConnStatus('connecting');
+
+  evtSource = new EventSource('/api/gateway/stream');
+
+  evtSource.addEventListener('backfill', function(e) {
+    try {
+      const data = JSON.parse(e.data);
+      if (Array.isArray(data)) {
+        emptyMsg.style.display = 'none';
+        for (const item of data) {
+          const parsed = parseLine(item.line, item.source);
+          const el = createLineEl(parsed);
+          lines.push(el);
+          container.appendChild(el);
+        }
+        while (lines.length > MAX_LINES) { lines.shift().remove(); }
+        updateLineCount();
+        scrollToBottom();
+      }
+    } catch (err) { console.error('backfill parse error:', err); }
+  });
+
+  evtSource.addEventListener('log', function(e) {
+    try {
+      const data = JSON.parse(e.data);
+      addLine(data.line, data.source);
+    } catch (err) { console.error('log parse error:', err); }
+  });
+
+  evtSource.onopen = function() { setConnStatus('connected'); };
+
+  evtSource.onerror = function() {
+    setConnStatus('disconnected');
+    evtSource.close();
+    evtSource = null;
+    // Reconnect after 3s
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, 3000);
+  };
+}
+
+// Fetch stats periodically
+async function fetchStats() {
+  try {
+    const r = await fetch('/api/gateway/stats');
+    const s = await r.json();
+    const parts = [];
+    if (s.logSize != null) parts.push('log: ' + (s.logSize / 1048576).toFixed(1) + ' MB');
+    if (s.errSize != null) parts.push('err: ' + (s.errSize / 1048576).toFixed(1) + ' MB');
+    if (s.gatewayPid) parts.push('PID: ' + s.gatewayPid);
+    logStatsEl.textContent = parts.join(' | ');
+  } catch(e) {}
+}
+
+connect();
+fetchStats();
+setInterval(fetchStats, 30000);
+</script>
+</body>
+</html>

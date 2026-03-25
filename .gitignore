@@ -1,4 +1,8 @@
 node_modules/
 dist/
 *.js.map
+*.db
+*.db-shm
+*.db-wal
+*.log
 .env

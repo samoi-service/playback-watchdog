@@ -1,0 +1,19 @@
+﻿<service>
+  <id>OpenClawPlayerAgent</id>
+  <name>OpenClaw Player Agent</name>
+  <description>OpenClaw venue monitoring player agent</description>
+  <executable>C:\nvm4w\nodejs\node.exe</executable>
+  <arguments>dist\index.js</arguments>
+  <workingdirectory>C:\Program Files\OpenClawPlayerAgent</workingdirectory>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <onfailure action="restart" delay="60 sec" />
+  <resetfailure>1 hour</resetfailure>
+  <startmode>Automatic</startmode>
+  <priority>Normal</priority>
+  <stoptimeout>15 sec</stoptimeout>
+</service>
